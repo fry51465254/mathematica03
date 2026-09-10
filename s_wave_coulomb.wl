@@ -90,7 +90,20 @@ K = Table[
 *)
 i0 = First@Ordering[Abs[qregion - mu alpha], 1];
 
-lambdaOfEb[Eb_?NumericQ] := Module[{n, A, rhs, T},
+(* p 从 ~10^-4 跨到 ~10^4，直接 LinearSolve 会报 luc 病态矩阵。
+   先按行、列无穷范数把 A 均衡到 O(1)，条件数可从 ~10^13 降到 ~10^2。 *)
+scaledLinearSolve[A_?MatrixQ, rhs_?VectorQ] := Module[
+  {rowS, colS, A1, A2, rhs1, y},
+  rowS = Max[#, 10.^-30] & /@ (Max /@ Abs[A]);
+  A1 = MapThread[#1/#2 &, {A, rowS}];
+  rhs1 = rhs/rowS;
+  colS = Max[#, 10.^-30] & /@ (Max /@ Abs[Transpose[A1]]);
+  A2 = A1 . DiagonalMatrix[1/colS];
+  y = Quiet[LinearSolve[A2, rhs1], {LinearSolve::luc}];
+  y/colS
+];
+
+assembleSystem[Eb_?NumericQ] := Module[{n, A, rhs, T},
   n = Length[qregion];
   A = ConstantArray[0., {n + 1, n + 1}];
   rhs = ConstantArray[0., n + 1];
@@ -100,19 +113,17 @@ lambdaOfEb[Eb_?NumericQ] := Module[{n, A, rhs, T},
   A[[1 ;; n, 2 ;; n + 1]] = DiagonalMatrix[T] - K;
   A[[n + 1, i0 + 1]] = 1.;
   rhs[[n + 1]] = 1.;
-  LinearSolve[A, rhs][[1]]
+  {A, rhs}
 ];
 
-phiOfEb[Eb_?NumericQ] := Module[{n, A, rhs, T, sol},
-  n = Length[qregion];
-  A = ConstantArray[0., {n + 1, n + 1}];
-  rhs = ConstantArray[0., n + 1];
-  T = qregion^2/(2 mu) - Eb;
-  A[[1 ;; n, 1]] = -1.;
-  A[[1 ;; n, 2 ;; n + 1]] = DiagonalMatrix[T] - K;
-  A[[n + 1, i0 + 1]] = 1.;
-  rhs[[n + 1]] = 1.;
-  sol = LinearSolve[A, rhs];
+lambdaOfEb[Eb_?NumericQ] := Module[{A, rhs},
+  {A, rhs} = assembleSystem[Eb];
+  scaledLinearSolve[A, rhs][[1]]
+];
+
+phiOfEb[Eb_?NumericQ] := Module[{A, rhs, sol},
+  {A, rhs} = assembleSystem[Eb];
+  sol = scaledLinearSolve[A, rhs];
   {sol[[1]], sol[[2 ;;]]}
 ];
 
@@ -140,7 +151,7 @@ Module[{nDemo = 8, abscD, wD, qD, dD, KD, i0D, eqleft, eqright, polys, var, b, a
     A[[1 ;; nDemo, 2 ;;]] = DiagonalMatrix[qD^2/(2 mu) - EbN] - KD;
     A[[nDemo + 1, i0D + 1]] = 1.;
     rhs[[nDemo + 1]] = 1.;
-    lamM = LinearSolve[A, rhs][[1]];
+    lamM = scaledLinearSolve[A, rhs][[1]];
   ];
   Print["CoefficientArrays vs matrix λ[", EbN, "] = ", {lamCA, lamM}];
 ];

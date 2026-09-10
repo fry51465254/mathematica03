@@ -76,9 +76,27 @@ def linear_system(Eb, qregion, K, mu, i0):
     return A, rhs
 
 
+def scaled_linear_solve(A, rhs):
+    """Row/column equilibration so LinearSolve is not ill-conditioned.
+
+    tan(x π/2) sends p from ~1e-4 to ~1e4, so the raw matrix condition
+    number is ~1e13 and Mathematica raises LinearSolve::luc. After
+    scaling, cond drops to O(10^2).
+    """
+    row_s = np.max(np.abs(A), axis=1)
+    row_s = np.maximum(row_s, 1e-30)
+    A1 = A / row_s[:, None]
+    rhs1 = rhs / row_s
+    col_s = np.max(np.abs(A1), axis=0)
+    col_s = np.maximum(col_s, 1e-30)
+    A2 = A1 / col_s[None, :]
+    y = np.linalg.solve(A2, rhs1)
+    return y / col_s
+
+
 def lambda_of_Eb(Eb, qregion, K, mu, i0):
     A, rhs = linear_system(Eb, qregion, K, mu, i0)
-    sol = np.linalg.solve(A, rhs)
+    sol = scaled_linear_solve(A, rhs)
     return float(sol[0]), sol[1:]
 
 
