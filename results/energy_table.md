@@ -1,9 +1,9 @@
-# S-wave Coulomb bound-state results (atomic units)
-mu = 1.0, alpha = 1.0, nQuad = 32, arc = 1.55
+# S-wave Yukawa / Coulomb bound state (lecture λ-shooting)
 
-| n | analytic E | Nyström / integral shooting | ODE shooting |
-|---|------------|-----------------------------|--------------|
-| 1 | -0.50000000 | -0.50058954 | -0.50000000 |
-| 2 | -0.12500000 | -0.12555947 | -0.12500000 |
-| 3 | -0.05555556 | -0.05621095 | — |
-| 4 | -0.03125000 | -0.03208015 | — |
+mu = 1.0, alpha = 1/137, mex = 0.001, nq = 160
+
+| method | E1 |
+|---|---|
+| Coulomb analytic $-\mu\alpha^2/2$ | -2.66396718e-05 |
+| λ(Eb) LinearSolve shooting | -2.02510034e-05 |
+| Yukawa radial ODE shooting | -2.00322198e-05 |
